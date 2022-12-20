@@ -1,8 +1,12 @@
 from flask import Flask
 from flask import request
+from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
+
+cors = CORS(app)
 
 db = SQLAlchemy()
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite"
@@ -16,7 +20,10 @@ class Election(db.Model):
     name = db.Column(db.String)
     candidates = db.relationship('Candidate', backref='election')#, lazy=True)
     voters = db.relationship('Voter', backref='election')#, lazy=True)
-    ballots = db.relationship('Voter', backref='election')#, lazy=True)
+    ballots = db.relationship('Ballot', backref='election')#, lazy=True)
+
+   def as_dict(self):
+       return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 class Candidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,18 +50,17 @@ with app.app_context():
 def hello_world():
     return "<p>Hello, World!</p>"
 
-@app.route("/elections", methods=["GET"])
+@app.route("/elections/", methods=["GET"])
 def election_index():
     return Election.query.all()
 
-@app.route("/elections", methods=["POST"])
-def election_create(id):
+@app.route("/elections/", methods=["POST"])
+def election_create():
     data = request.get_json()
-    return 
     election = Election(name=data.get('name', ''), candidates=data.get('candidates', []), voters=data.get('voters', []))
     db.session.add(election)
     db.session.commit()
-    return election
+    return election.as_dict()
 
 @app.route("/elections/<int:id>", methods=["GET"])
 def election_show(id):
